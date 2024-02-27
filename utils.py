@@ -12,3 +12,14 @@ def convert_american_odds_implied_probability(odds: int):
     else:
         prob = 100/(100+odds)
     return prob
+
+def calculate_unit_bet_outcome(bet_result, bet_payout):
+    if bet_result == 'W':
+        return bet_payout
+    if bet_result == 'Push':
+        return 0
+    if bet_result == 'L':
+        return -1
+    
+def calculate_bet_outcome(bet_size, bet_result, bet_payout):
+    return bet_size * calculate_unit_bet_outcome(bet_result, bet_payout)
