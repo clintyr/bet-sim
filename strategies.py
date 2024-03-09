@@ -25,7 +25,9 @@ class BettingStrategies(Strategies):
         self.unit_payout = [[utils.convert_american_odds_return(odd) for odd in odds] for odds in prob_info]
         self.num_runs = len(self.bet_results)
         self.initial_amt = initial_amt
-
+        self.push = 'Push'
+        self.win = 'W'
+        self.loss = 'L'
         self.current_index = 0
 
     def simulate_bankroll(self, num_bets, outcome, unit_payout):
@@ -79,8 +81,31 @@ class BettingStrategies(Strategies):
     def verify_min_bet(self):
         if self.bet_size < 1:
             self.bet_size = 1
+    
+    def change_bet_size_variable(self):
+        if not(hasattr(self, 'reverse')):
+            self.reset_condition = self.win
+            self.increase_condition = self.loss
+        else:
+            self.reset_condition = self.loss
+            self.increase_condition = self.win
+
+        if self.last_outcome == self.push:
+                pass
+        elif self.last_outcome == self.reset_condition:
+            self.calculate_reset_bet_size()
+            self.bet_size = self.reset_bet_size
+        elif self.last_outcome == self.increase_condition:
+            self.calculate_increase_bet_size()
+            self.bet_size = self.increase_bet_size
 
     def change_bet_size(self):
+        pass
+    
+    def calculate_reset_bet_size(self):
+        pass
+
+    def calculate_increase_bet_size(self):
         pass
 
 class UnitBet(BettingStrategies):
@@ -120,32 +145,26 @@ class Martingale(BettingStrategies):
         self.bet_size = self.initial_bet_size
 
     def change_bet_size(self):
+        self.reset_bet_size = self.initial_bet_size
+        self.increase_bet_size = self.initial_bet_size
+        self.change_bet_size_variable()
 
-        if self.last_outcome == 'Push':
-            pass
-        elif self.last_outcome == 'W':
-            self.bet_size = self.initial_bet_size
-        elif self.last_outcome == 'L':
-            self.bet_size *= 2
+    def calculate_reset_bet_size(self):
+        if not (hasattr(self, 'capped')):
+            self.reset_bet_size = self.initial_bet_size
 
-class AntiMartingale(BettingStrategies):
+    def calculate_increase_bet_size(self):
+        if not(hasattr(self, 'capped')):
+            self.increase_bet_size = self.bet_size * 2
+            self.bet_size = self.increase_bet_size
+
+class AntiMartingale(Martingale):
     def __init__(self, results, prob_info, initial_amt=100, unit_size=1):
         super().__init__(results, prob_info, initial_amt)
-        self.unit_size = unit_size
-
-        self.kind = 'unit'
-        self.sizing = 'variable'
-        self.initial_bet_size = 1 * self.unit_size
-        self.bet_size = self.initial_bet_size
+        self.reverse = True
 
     def change_bet_size(self):
-
-        if self.last_outcome == 'Push':
-            pass
-        elif self.last_outcome == 'L':
-            self.bet_size = self.initial_bet_size
-        elif self.last_outcome == 'W':
-            self.bet_size *= 2
+        super().change_bet_size()
 
 class KellyCriterion(BettingStrategies):
     def __init__(self, results, prob_info, pct=None, unit_size=1):
@@ -174,14 +193,21 @@ class WinnersBet(BettingStrategies):
         self.initial_bet_size = 1 * self.unit_size
         self.bet_size = self.initial_bet_size
 
-    def change_bet_size(self):
+        self.reverse = True
 
-        if self.last_outcome == 'Push':
-            pass
-        elif self.last_outcome == 'L':
-            self.bet_size = self.initial_bet_size
-        elif self.last_outcome == 'W':
-            self.bet_size = self.last_payout
+    def change_bet_size(self):
+        self.reset_bet_size = self.initial_bet_size
+        self.increase_bet_size = self.initial_bet_size
+        self.change_bet_size_variable()
+
+    def calculate_reset_bet_size(self):
+        if not (hasattr(self, 'capped')):
+            self.reset_bet_size = self.initial_bet_size
+
+    def calculate_increase_bet_size(self):
+        if not(hasattr(self, 'capped')):
+            self.increase_bet_size = self.last_payout
+            self.bet_size = self.increase_bet_size
 
 class Fibonacci(BettingStrategies):
     def __init__(self, results, prob_info, initial_amt=100, unit_size=1):
@@ -193,15 +219,42 @@ class Fibonacci(BettingStrategies):
 
         self.initial_bet_size = 1 * self.unit_size
         self.bet_size = self.initial_bet_size
+        self.restart_bet_size = self.initial_bet_size
+
+        self.fib_memo = {}
+        self.fib_index = 1
+
+    def calculate_fibonacci(self):
+        n = self.fib_index
+        if n <= 0:
+            return 0
+        elif n == 1 or n == 2:
+            return 1
+        elif n in self.fib_memo:
+            return self.fib_memo[n]
+        else:
+            self.fib_memo[n] = self.calculate_fibonacci(n-1) + self.calculate_fibonacci(n-2)
+            return self.fib_memo[n]
 
     def change_bet_size(self):
+        self.restart_bet_size = self.fib_memo[self.fib_index]
 
         if self.last_outcome == 'Push':
             pass
+
         elif self.last_outcome == 'L':
             self.bet_size = self.initial_bet_size
+            self.fib_index += 1
+
         elif self.last_outcome == 'W':
             self.bet_size = self.last_payout
+        
+        if self.stop_index:
+            pass
+
+
+    def set_fibonacci_baseline(self):
+        pass
 
 class AntiFibonacci(BettingStrategies):
     pass
