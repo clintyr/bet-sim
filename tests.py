@@ -76,6 +76,7 @@ class MartingaleTest(unittest.TestCase):
 
         m_bet = Martingale(bet_results, prob_info)
         m_bet.simulate_strategy()
+        # print(m_bet.bankroll_values)
         self.assertEqual(expected_running_bankroll, m_bet.bankroll_values)
         self.assertEqual(expected_bet_sizes, m_bet.bet_sizes)
 
